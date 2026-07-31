@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Layya Signal— Painel de Mídia Indoor</title>
+<title>SINAL — Painel de Mídia Indoor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -216,6 +216,17 @@
   .lock-error{ font-family:var(--font-mono); font-size:11.5px; color:var(--tally); min-height:14px; }
   .auth-box{ display:none; align-items:center; gap:10px; }
   .auth-box .btn{ padding:5px 11px; font-size:11px; }
+
+  .weather-panel{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  }
+  .weather-panel label{ display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); white-space:nowrap; }
+  .weather-panel input[type="text"], .weather-panel input[type="number"]{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:7px; padding:8px 10px; font-family:var(--font-body); font-size:13px; width:140px;
+  }
+  .weather-status{ font-family:var(--font-mono); font-size:11px; color:var(--muted); flex-basis:100%; }
 </style>
 </head>
 <body>
@@ -261,6 +272,14 @@
         <button class="btn btn-primary" id="go-player-btn">▶ Ver no player</button>
       </div>
 
+      <div class="weather-panel">
+        <label><input type="checkbox" id="w-enabled" style="width:auto;"> Mostrar horário/clima entre os anúncios</label>
+        <label>Cidade: <input type="text" id="w-city" placeholder="ex: Descalvado, SP"></label>
+        <label>Duração: <input type="number" id="w-duration" value="10" min="5" max="30"> seg</label>
+        <button class="btn btn-primary" id="w-save-btn">Salvar clima</button>
+        <div class="weather-status" id="w-status"></div>
+      </div>
+
       <div class="add-form">
         <input id="f-title" placeholder="Título (ex: Promoção da semana)">
         <input id="f-sub" placeholder="Subtítulo / descrição">
@@ -276,6 +295,10 @@
       <div class="add-form-hint">
         Dica: suba a imagem numa pasta <code>/midia</code> do seu repositório GitHub e cole aqui o link no formato
         <code>https://cdn.jsdelivr.net/gh/usuario/repositorio/midia/arquivo.jpg</code>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;">
+          <input type="checkbox" id="f-hide-overlay" style="width:auto;">
+          A imagem já é o anúncio completo (não mostrar título/subtítulo por cima na tela)
+        </label>
       </div>
 
       <div class="playlist" id="playlist"></div>
@@ -436,6 +459,7 @@ function subscribe(){
     setConn('ok', 'sincronizado com o Firestore');
     firstSyncDone = true;
     renderAll();
+    state.screens.forEach(s => refreshWeather(s));
   }, (err) => {
     console.error(err);
     setConn('err', 'sem conexão com o Firestore — veja as regras de segurança');
@@ -545,21 +569,119 @@ function renderAll(){
   renderEditor();
   renderStats();
   renderPlayerSelect();
+  renderWeatherPanel();
 }
+
+// ---------- Clima ----------
+const weatherCache = {}; // screenId -> {temp, desc, city, fetchedAt}
+const WEATHER_CODES = {
+  0:'Céu limpo',1:'Poucas nuvens',2:'Parcialmente nublado',3:'Nublado',
+  45:'Neblina',48:'Neblina',
+  51:'Garoa fraca',53:'Garoa',55:'Garoa forte',
+  61:'Chuva fraca',63:'Chuva',65:'Chuva forte',
+  71:'Neve fraca',73:'Neve',75:'Neve forte',
+  80:'Pancadas de chuva',81:'Pancadas de chuva',82:'Pancadas fortes',
+  95:'Trovoadas'
+};
+
+function renderWeatherPanel(){
+  const screen = getScreen(state.currentAdmin);
+  const w = screen.weather || {};
+  document.getElementById('w-enabled').checked = !!w.enabled;
+  document.getElementById('w-city').value = w.city || '';
+  document.getElementById('w-duration').value = w.duration || 10;
+  document.getElementById('w-status').textContent = w.lat
+    ? `Configurado: ${w.city} (${w.lat.toFixed(2)}, ${w.lon.toFixed(2)})`
+    : 'Ainda não configurado pra esta tela.';
+}
+
+async function geocodeCity(name){
+  const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=pt`);
+  const data = await res.json();
+  if(!data.results || data.results.length === 0) return null;
+  const r = data.results[0];
+  return { lat: r.latitude, lon: r.longitude, label: `${r.name}${r.admin1 ? ', '+r.admin1 : ''}` };
+}
+
+async function refreshWeather(screen){
+  const w = screen.weather;
+  if(!w || !w.enabled || !w.lat) return;
+  const cached = weatherCache[screen.id];
+  if(cached && (Date.now() - cached.fetchedAt) < 9*60*1000) return;
+  try{
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lon}&current=temperature_2m,weather_code`);
+    const data = await res.json();
+    weatherCache[screen.id] = {
+      temp: Math.round(data.current.temperature_2m),
+      desc: WEATHER_CODES[data.current.weather_code] || 'Tempo variável',
+      city: w.city,
+      fetchedAt: Date.now()
+    };
+  }catch(e){ console.error('erro ao buscar clima', e); }
+}
+
+document.getElementById('w-save-btn').onclick = async () => {
+  const screen = getScreen(state.currentAdmin);
+  const enabled = document.getElementById('w-enabled').checked;
+  const cityInput = document.getElementById('w-city').value.trim();
+  const duration = Number(document.getElementById('w-duration').value) || 10;
+  const statusEl = document.getElementById('w-status');
+  if(enabled && !cityInput){ statusEl.textContent = 'Digite uma cidade antes de ativar.'; return; }
+  let weatherObj = { enabled, city: cityInput, duration };
+  if(cityInput){
+    statusEl.textContent = 'Buscando localização…';
+    const geo = await geocodeCity(cityInput);
+    if(!geo){ statusEl.textContent = 'Cidade não encontrada, confira o nome.'; return; }
+    weatherObj.lat = geo.lat; weatherObj.lon = geo.lon; weatherObj.city = geo.label;
+  }
+  await setDoc(doc(db, 'screens', screen.id), { weather: weatherObj }, { merge: true });
+  delete weatherCache[screen.id];
+  statusEl.textContent = 'Salvo! Buscando previsão…';
+  const freshScreen = getScreen(screen.id);
+  if(freshScreen) { freshScreen.weather = weatherObj; await refreshWeather(freshScreen); }
+  renderWeatherPanel();
+};
 
 // ---------- Playback engines ----------
 function paintScreen(screenEl, titleEl, subEl, item){
+  if(item.isWeather){
+    screenEl.style.backgroundImage = 'none';
+    screenEl.style.backgroundColor = '#1a2a4a';
+    screenEl.style.background = 'linear-gradient(135deg, #1a2a4a, #2d4a7a)';
+    titleEl.style.color = '#fff';
+    subEl.style.color = 'rgba(255,255,255,0.85)';
+    return;
+  }
   if(item.mediaUrl){
+    screenEl.style.background = '';
     screenEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.55)), url('${item.mediaUrl}')`;
     screenEl.style.backgroundColor = 'transparent';
     titleEl.style.color = '#fff';
     subEl.style.color = '#fff';
   } else {
+    screenEl.style.background = '';
     screenEl.style.backgroundImage = 'none';
     screenEl.style.backgroundColor = TYPE_BG[item.type];
     titleEl.style.color = '#0d0f14';
     subEl.style.color = '#0d0f14';
   }
+}
+
+function buildPlaybackItems(screen){
+  const w = screen.weather;
+  if(w && w.enabled && w.lat){
+    return screen.items.concat([{ id:'__weather__', isWeather:true, duration: w.duration || 10 }]);
+  }
+  return screen.items;
+}
+
+function weatherSlideText(screenId){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  const wc = weatherCache[screenId];
+  const sub = wc ? `${wc.desc} · ${wc.temp}°C · ${wc.city}` : 'Carregando previsão…';
+  return { time: `${hh}:${mm}`, sub };
 }
 
 function makeEngine(getScreenId, els){
@@ -568,22 +690,23 @@ function makeEngine(getScreenId, els){
     const screenId = getScreenId();
     if(screenId !== lastScreenId){ idx = 0; elapsed = 0; lastScreenId = screenId; }
     const screen = getScreen(screenId);
-    if(!screen || screen.items.length === 0){
+    const items = screen ? buildPlaybackItems(screen) : [];
+    if(!screen || items.length === 0){
       els.onEmpty();
       lastTs = ts; requestAnimationFrame(tick); return;
     }
-    if(idx >= screen.items.length) idx = 0;
-    const item = screen.items[idx];
+    if(idx >= items.length) idx = 0;
+    const item = items[idx];
     if(lastTs === null) lastTs = ts;
     const dt = (ts - lastTs) / 1000;
     lastTs = ts;
     elapsed += dt;
     const dur = Number(item.duration) || 8;
     const pct = Math.min(100, (elapsed/dur)*100);
-    els.onFrame(item, pct);
+    els.onFrame(item, pct, screenId);
     if(elapsed >= dur){
       elapsed = 0;
-      idx = (idx + 1) % screen.items.length;
+      idx = (idx + 1) % items.length;
     }
     requestAnimationFrame(tick);
   }
@@ -591,13 +714,19 @@ function makeEngine(getScreenId, els){
 }
 
 makeEngine(() => state.currentAdmin, {
-  onFrame(item, pct){
+  onFrame(item, pct, screenId){
     const screenEl = document.getElementById('mini-screen');
     const titleEl = document.getElementById('mini-title');
     const subEl = document.getElementById('mini-sub');
     paintScreen(screenEl, titleEl, subEl, item);
-    titleEl.textContent = item.title;
-    subEl.textContent = item.sub || '';
+    if(item.isWeather){
+      const w = weatherSlideText(screenId);
+      titleEl.textContent = w.time;
+      subEl.textContent = w.sub;
+    } else {
+      titleEl.textContent = item.hideOverlay ? '' : item.title;
+      subEl.textContent = item.hideOverlay ? '' : (item.sub || '');
+    }
     document.getElementById('mini-progress').style.width = pct + '%';
   },
   onEmpty(){
@@ -611,16 +740,23 @@ makeEngine(() => state.currentAdmin, {
 });
 
 makeEngine(() => state.currentPlayer, {
-  onFrame(item, pct){
+  onFrame(item, pct, screenId){
     const screenEl = document.getElementById('tv-screen');
     const titleEl = document.getElementById('tv-title');
     const subEl = document.getElementById('tv-sub');
     paintScreen(screenEl, titleEl, subEl, item);
-    titleEl.textContent = item.title;
-    subEl.textContent = item.sub || '';
-    document.getElementById('tv-badge').textContent = TYPE_LABEL[item.type];
-    document.getElementById('tv-badge').style.color = item.mediaUrl ? 'rgba(255,255,255,0.75)' : 'rgba(13,15,20,0.6)';
-    document.getElementById('tv-clock-holder');
+    if(item.isWeather){
+      const w = weatherSlideText(screenId);
+      titleEl.textContent = w.time;
+      subEl.textContent = w.sub;
+      document.getElementById('tv-badge').textContent = 'HORÁRIO E CLIMA';
+      document.getElementById('tv-badge').style.color = 'rgba(255,255,255,0.75)';
+    } else {
+      titleEl.textContent = item.hideOverlay ? '' : item.title;
+      subEl.textContent = item.hideOverlay ? '' : (item.sub || '');
+      document.getElementById('tv-badge').textContent = item.hideOverlay ? '' : TYPE_LABEL[item.type];
+      document.getElementById('tv-badge').style.color = item.mediaUrl ? 'rgba(255,255,255,0.75)' : 'rgba(13,15,20,0.6)';
+    }
     document.getElementById('tv-progress').style.width = pct + '%';
   },
   onEmpty(){
@@ -672,9 +808,10 @@ document.getElementById('add-item-btn').onclick = async () => {
   const mediaUrl = document.getElementById('f-media').value.trim();
   const type = document.getElementById('f-type').value;
   const duration = Number(document.getElementById('f-duration').value) || 8;
+  const hideOverlay = document.getElementById('f-hide-overlay').checked;
   if(!title) { document.getElementById('f-title').focus(); return; }
   const screen = getScreen(state.currentAdmin);
-  const items = screen.items.concat([{ id: nextId++, title, sub, type, duration, mediaUrl }]);
+  const items = screen.items.concat([{ id: nextId++, title, sub, type, duration, mediaUrl, hideOverlay }]);
   const btn = document.getElementById('add-item-btn');
   btn.disabled = true; btn.textContent = 'salvando…';
   await saveScreenItems(screen.id, items);
@@ -683,12 +820,14 @@ document.getElementById('add-item-btn').onclick = async () => {
   document.getElementById('f-sub').value = '';
   document.getElementById('f-media').value = '';
   document.getElementById('f-duration').value = 8;
+  document.getElementById('f-hide-overlay').checked = false;
 };
 
 // ---------- Boot ----------
 setConn('', 'conectando ao Firestore…');
 renderAll();
 seedIfEmpty().then(subscribe);
+setInterval(() => { state.screens.forEach(s => refreshWeather(s)); }, 10*60*1000);
 </script>
 </body>
 </html>
