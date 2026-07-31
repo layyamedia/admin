@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>SINAL — Painel de Mídia Indoor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12141a;
+    --panel: #1a1d26;
+    --panel-2: #20242f;
+    --border: #2a2e3a;
+    --text: #eef0f4;
+    --muted: #8b93a3;
+    --tally: #ff5a36;
+    --accent-live: #3ddc97;
+    --type-promo: #3ddc97;
+    --type-aviso: #ffb648;
+    --type-anuncio: #7c9bff;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+    --font-body: 'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height:100vh;
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(61,220,151,0.05), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(124,155,255,0.06), transparent 45%);
+  }
+
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 24px;
+    border-bottom:1px solid var(--border);
+    background: rgba(20,22,29,0.85);
+    backdrop-filter: blur(6px);
+    position:sticky; top:0; z-index:50;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{
+    width:26px; height:26px; border-radius:6px;
+    background: linear-gradient(135deg, var(--type-anuncio), var(--type-promo));
+    display:flex; align-items:center; justify-content:center;
+    font-family: var(--font-mono); font-size:11px; font-weight:600; color:#0d0f14;
+  }
+  .brand-name{ font-family: var(--font-display); font-weight:600; font-size:17px; letter-spacing:0.5px; }
+  .brand-sub{ font-family: var(--font-mono); font-size:10.5px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; }
+  .conn-status{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  .conn-dot{ width:7px; height:7px; border-radius:50%; background:var(--muted); }
+  .conn-dot.ok{ background:var(--accent-live); box-shadow:0 0 6px var(--accent-live); }
+  .conn-dot.err{ background:var(--tally); box-shadow:0 0 6px var(--tally); }
+
+  .tabs{ display:flex; gap:6px; background:var(--panel); padding:4px; border-radius:10px; border:1px solid var(--border);}
+  .tab-btn{
+    font-family: var(--font-mono); font-size:12.5px; letter-spacing:0.5px;
+    padding:8px 16px; border-radius:7px; border:none; background:transparent; color:var(--muted);
+    cursor:pointer; transition:all .15s ease;
+  }
+  .tab-btn.active{ background:var(--panel-2); color:var(--text); box-shadow: inset 0 0 0 1px var(--border);}
+  .tab-btn:hover:not(.active){ color:var(--text); }
+
+  .view{ display:none; }
+  .view.active{ display:block; }
+
+  .admin-wrap{
+    display:grid;
+    grid-template-columns: 220px 1fr 300px;
+    gap:0;
+    min-height: calc(100vh - 57px);
+  }
+  @media (max-width: 980px){
+    .admin-wrap{ grid-template-columns: 1fr; }
+  }
+
+  .sidebar{ border-right:1px solid var(--border); padding:20px 14px; }
+  .sidebar-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; padding:0 8px 10px; }
+  .screen-item{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:11px 12px; border-radius:9px; margin-bottom:4px; cursor:pointer;
+    border:1px solid transparent; transition:all .15s ease;
+  }
+  .screen-item:hover{ background:var(--panel); }
+  .screen-item.selected{ background:var(--panel-2); border-color:var(--border); }
+  .screen-item-name{ font-size:13.5px; font-weight:500; }
+  .screen-item-meta{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); margin-top:2px; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--accent-live); flex-shrink:0; box-shadow:0 0 6px var(--accent-live); }
+
+  .editor{ padding:26px 32px; border-right:1px solid var(--border); }
+  .editor-header{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:10px;}
+  .editor-title{ font-family:var(--font-display); font-size:22px; font-weight:600; }
+  .editor-title span{ color:var(--muted); font-weight:400; font-size:14px; }
+  .btn{
+    font-family:var(--font-mono); font-size:11.5px; letter-spacing:0.3px;
+    padding:9px 14px; border-radius:8px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); cursor:pointer; transition:all .15s ease;
+  }
+  .btn:hover{ background:var(--panel-2); }
+  .btn-primary{ background:var(--type-anuncio); color:#0d0f14; border-color:var(--type-anuncio); font-weight:600; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-primary:disabled{ opacity:0.5; cursor:wait; }
+
+  .add-form{
+    display:grid; grid-template-columns: 1.1fr 1.3fr 1.5fr 0.9fr 0.6fr auto;
+    gap:8px; background:var(--panel); border:1px solid var(--border); border-radius:12px 12px 0 0; padding:14px;
+  }
+  @media (max-width:900px){ .add-form{ grid-template-columns:1fr 1fr; } }
+  .add-form input, .add-form select{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:7px; padding:9px 10px; font-family:var(--font-body); font-size:13px; width:100%;
+  }
+  .add-form input::placeholder{ color:#5c6270; }
+  .add-form-hint{
+    background:var(--panel); border:1px solid var(--border); border-top:none; border-radius:0 0 12px 12px;
+    padding:9px 14px; font-family:var(--font-mono); font-size:11px; color:var(--muted); margin-bottom:22px;
+  }
+  .add-form-hint code{ color:var(--type-anuncio); }
+
+  .playlist{ display:flex; flex-direction:column; gap:8px; }
+  .item-card{
+    display:flex; align-items:center; gap:12px;
+    background:var(--panel); border:1px solid var(--border); border-radius:11px; padding:12px 14px;
+  }
+  .type-chip{ width:9px; height:34px; border-radius:4px; flex-shrink:0; }
+  .thumb{ width:38px; height:38px; border-radius:6px; object-fit:cover; flex-shrink:0; border:1px solid var(--border); }
+  .item-main{ flex:1; min-width:0; }
+  .item-title{ font-size:13.5px; font-weight:600; }
+  .item-sub{ font-size:12px; color:var(--muted); margin-top:1px; }
+  .item-tags{ display:flex; gap:8px; align-items:center; }
+  .badge{ font-family:var(--font-mono); font-size:10px; letter-spacing:0.5px; text-transform:uppercase; padding:3px 8px; border-radius:20px; border:1px solid var(--border); color:var(--muted); }
+  .duration-tag{ font-family:var(--font-mono); font-size:11.5px; color:var(--muted); white-space:nowrap; }
+  .item-actions{ display:flex; gap:4px; }
+  .icon-btn{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--muted);
+    width:26px; height:26px; border-radius:6px; cursor:pointer; font-size:12px; line-height:1;
+    display:flex; align-items:center; justify-content:center; transition:all .15s ease;
+  }
+  .icon-btn:hover{ color:var(--text); background:#262b38; }
+  .icon-btn.danger:hover{ color:var(--tally); border-color:var(--tally); }
+  .empty-state{ text-align:center; padding:50px 20px; color:var(--muted); font-size:13.5px; border:1px dashed var(--border); border-radius:12px; }
+
+  .preview-col{ padding:26px 22px; }
+  .preview-label{ font-family:var(--font-mono); font-size:10.5px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; margin-bottom:12px; }
+  .monitor{
+    background:#0a0b0e; border-radius:14px; padding:10px; border:1px solid var(--border);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+  }
+  .monitor-screen{
+    aspect-ratio: 16/9; border-radius:6px; overflow:hidden; position:relative;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    padding:16px; text-align:center; background-size:cover; background-position:center; transition:background-color .3s ease;
+  }
+  .monitor-screen::after{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px);
+  }
+  .mini-title{ font-family:var(--font-display); font-weight:600; font-size:15px; z-index:1; }
+  .mini-sub{ font-size:11px; opacity:0.85; margin-top:4px; z-index:1; }
+  .mini-progress{ position:absolute; bottom:0; left:0; height:3px; background:rgba(255,255,255,0.55); }
+  .tally-row{ display:flex; align-items:center; gap:6px; margin-top:12px; font-family:var(--font-mono); font-size:10.5px; color:var(--muted); }
+  .tally-dot{ width:7px; height:7px; border-radius:50%; background:var(--tally); animation:blink 1.4s infinite; }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:0.25;} }
+
+  .stat-block{ margin-top:20px; display:flex; flex-direction:column; gap:10px; }
+  .stat-row{ display:flex; justify-content:space-between; font-size:12.5px; padding:9px 12px; background:var(--panel); border:1px solid var(--border); border-radius:8px; }
+  .stat-row b{ font-family:var(--font-mono); font-weight:600; }
+
+  .player-view{ min-height:calc(100vh - 57px); display:flex; align-items:center; justify-content:center; padding:30px; }
+  .player-controls{
+    position:fixed; top:70px; left:24px; z-index:40;
+    background:rgba(26,29,38,0.9); border:1px solid var(--border); border-radius:10px; padding:10px 12px;
+    display:flex; align-items:center; gap:8px; backdrop-filter:blur(6px);
+  }
+  .player-controls select{
+    background:var(--panel-2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-family:var(--font-mono); font-size:12px;
+  }
+  .player-controls .lbl{ font-family:var(--font-mono); font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:1px; }
+
+  .tv{ width:min(1100px, 88vw); }
+  .tv-bezel{ background:#0a0b0e; border-radius:22px; padding:20px; box-shadow:0 30px 70px rgba(0,0,0,0.55), inset 0 0 0 1px #1c1e26; }
+  .tv-screen{
+    aspect-ratio:16/9; border-radius:8px; position:relative; overflow:hidden;
+    display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:40px;
+    transition: background-color .5s ease; background-size:cover; background-position:center;
+  }
+  .tv-screen::after{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0px, rgba(0,0,0,0.07) 1px, transparent 1px, transparent 3px);
+  }
+  .tv-title{ font-family:var(--font-display); font-weight:700; font-size:clamp(24px,4vw,52px); z-index:1; }
+  .tv-sub{ font-family:var(--font-body); font-size:clamp(13px,1.6vw,20px); margin-top:14px; z-index:1; opacity:0.9; }
+  .tv-badge{ position:absolute; top:20px; left:24px; z-index:2; font-family:var(--font-mono); font-size:11px; letter-spacing:1px; text-transform:uppercase; }
+  .tv-progress{ position:absolute; bottom:0; left:0; height:5px; background:rgba(255,255,255,0.4); transition:width linear; }
+  .tv-clock{ position:absolute; top:20px; right:24px; z-index:2; font-family:var(--font-mono); font-size:12px; letter-spacing:1px; }
+  .tv-tally{ position:absolute; bottom:18px; right:22px; z-index:2; display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:11px; letter-spacing:1px; }
+  .tv-dot{ width:8px; height:8px; border-radius:50%; background:var(--tally); animation:blink 1.4s infinite; }
+  .tv-empty{ font-family:var(--font-mono); opacity:0.6; font-size:14px; z-index:1; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">S</div>
+    <div>
+      <div class="brand-name">SINAL</div>
+      <div class="brand-sub">Mídia Indoor</div>
+    </div>
+  </div>
+  <div class="conn-status"><div class="conn-dot" id="conn-dot"></div><span id="conn-label">conectando ao Firestore…</span></div>
+  <div class="tabs">
+    <button class="tab-btn active" data-view="admin">Painel Admin</button>
+    <button class="tab-btn" data-view="player">Tela · Player</button>
+  </div>
+</div>
+
+<div id="view-admin" class="view active">
+  <div class="admin-wrap">
+    <div class="sidebar">
+      <div class="sidebar-label">Telas / Locais</div>
+      <div id="screen-list"></div>
+    </div>
+
+    <div class="editor">
+      <div class="editor-header">
+        <div class="editor-title" id="editor-title">— <span></span></div>
+        <button class="btn btn-primary" id="go-player-btn">▶ Ver no player</button>
+      </div>
+
+      <div class="add-form">
+        <input id="f-title" placeholder="Título (ex: Promoção da semana)">
+        <input id="f-sub" placeholder="Subtítulo / descrição">
+        <input id="f-media" placeholder="URL da imagem (opcional)">
+        <select id="f-type">
+          <option value="promo">Promoção loja</option>
+          <option value="aviso">Aviso condomínio</option>
+          <option value="anuncio">Anúncio comércio local</option>
+        </select>
+        <input id="f-duration" type="number" min="3" max="60" value="8" placeholder="seg">
+        <button class="btn btn-primary" id="add-item-btn">+ Adicionar</button>
+      </div>
+      <div class="add-form-hint">
+        Dica: suba a imagem numa pasta <code>/midia</code> do seu repositório GitHub e cole aqui o link no formato
+        <code>https://cdn.jsdelivr.net/gh/usuario/repositorio/midia/arquivo.jpg</code>
+      </div>
+
+      <div class="playlist" id="playlist"></div>
+    </div>
+
+    <div class="preview-col">
+      <div class="preview-label">Pré-visualização ao vivo</div>
+      <div class="monitor">
+        <div class="monitor-screen" id="mini-screen">
+          <div class="mini-title" id="mini-title">—</div>
+          <div class="mini-sub" id="mini-sub"></div>
+          <div class="mini-progress" id="mini-progress"></div>
+        </div>
+      </div>
+      <div class="tally-row"><div class="tally-dot"></div> transmitindo em loop</div>
+
+      <div class="stat-block" id="stat-block"></div>
+    </div>
+  </div>
+</div>
+
+<div id="view-player" class="view">
+  <div class="player-controls">
+    <span class="lbl">Feed</span>
+    <select id="player-select"></select>
+  </div>
+  <div class="player-view">
+    <div class="tv">
+      <div class="tv-bezel">
+        <div class="tv-screen" id="tv-screen">
+          <div class="tv-badge" id="tv-badge">—</div>
+          <div class="tv-clock" id="tv-clock">--:--</div>
+          <div class="tv-title" id="tv-title"></div>
+          <div class="tv-sub" id="tv-sub"></div>
+          <div class="tv-tally"><div class="tv-dot"></div> AO VIVO</div>
+          <div class="tv-progress" id="tv-progress"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getFirestore, doc, getDoc, setDoc, onSnapshot, collection
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ---------- Firebase ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyCfJlIaD5-B_FhbvuZcFiJhkIgioAgmXfg",
+  authDomain: "layyamedia.firebaseapp.com",
+  projectId: "layyamedia",
+  storageBucket: "layyamedia.firebasestorage.app",
+  messagingSenderId: "334882216784",
+  appId: "1:334882216784:web:009cf23c10aa8ffe2a6a55"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+function setConn(status, label){
+  document.getElementById('conn-dot').className = 'conn-dot ' + status;
+  document.getElementById('conn-label').textContent = label;
+}
+
+const SCREEN_ORDER = [
+  { id:'girassois', name:'Girassóis — Hall' },
+  { id:'moradas2',  name:'Moradas II — Portaria' },
+  { id:'quebec',    name:'Québec — Área comum' },
+  { id:'montreal',  name:'Montréal — Hall social' },
+];
+
+const SEED_ITEMS = {
+  girassois: [
+    { id:1, title:'Combo Café da Manhã', sub:'Pão + café + suco por R$9,90 até 10h', type:'promo', duration:8, mediaUrl:'' },
+    { id:2, title:'Manutenção do elevador social', sub:'Sexta-feira das 9h às 12h', type:'aviso', duration:7, mediaUrl:'' },
+    { id:3, title:'Estúdio Tinta & Pele', sub:'Tatuagens autorais · agende pelo Instagram', type:'anuncio', duration:8, mediaUrl:'' },
+  ],
+  moradas2: [
+    { id:1, title:'Bebidas geladas 24h', sub:'Cerveja, água de coco e refrigerante sempre gelados', type:'promo', duration:8, mediaUrl:'' },
+  ],
+  quebec: [],
+  montreal: [
+    { id:1, title:'Assembleia de condomínio', sub:'Dia 15, às 19h no salão de festas', type:'aviso', duration:9, mediaUrl:'' },
+  ],
+};
+
+const TYPE_COLOR = { promo: 'var(--type-promo)', aviso: 'var(--type-aviso)', anuncio: 'var(--type-anuncio)' };
+const TYPE_LABEL = { promo: 'Promoção', aviso: 'Aviso', anuncio: 'Anúncio' };
+const TYPE_BG = { promo:'#3ddc97', aviso:'#ffb648', anuncio:'#7c9bff' };
+
+let state = {
+  currentAdmin: 'girassois',
+  currentPlayer: 'girassois',
+  screens: SCREEN_ORDER.map(s => ({ ...s, items: [] })),
+};
+let nextId = 1000;
+let firstSyncDone = false;
+
+function getScreen(id){ return state.screens.find(s => s.id === id); }
+
+// ---------- Seed once + realtime sync ----------
+async function seedIfEmpty(){
+  for(const s of SCREEN_ORDER){
+    try{
+      const ref = doc(db, 'screens', s.id);
+      const snap = await getDoc(ref);
+      if(!snap.exists()){
+        await setDoc(ref, { name: s.name, items: SEED_ITEMS[s.id] || [] });
+      }
+    }catch(e){
+      console.error('Erro ao semear', s.id, e);
+      setConn('err', 'erro ao criar dados iniciais — confira as regras do Firestore');
+    }
+  }
+}
+
+function subscribe(){
+  onSnapshot(collection(db, 'screens'), (snap) => {
+    const byId = {};
+    snap.forEach(d => { byId[d.id] = d.data(); });
+    state.screens = SCREEN_ORDER.map(s => ({
+      id: s.id,
+      name: (byId[s.id] && byId[s.id].name) || s.name,
+      items: (byId[s.id] && byId[s.id].items) || [],
+    }));
+    setConn('ok', 'sincronizado com o Firestore');
+    firstSyncDone = true;
+    renderAll();
+  }, (err) => {
+    console.error(err);
+    setConn('err', 'sem conexão com o Firestore — veja as regras de segurança');
+  });
+}
+
+async function saveScreenItems(screenId, items){
+  try{
+    await setDoc(doc(db, 'screens', screenId), { items }, { merge: true });
+  }catch(e){
+    console.error(e);
+    setConn('err', 'não consegui salvar — confira as regras do Firestore');
+  }
+}
+
+// ---------- Rendering ----------
+function renderScreenList(){
+  const el = document.getElementById('screen-list');
+  el.innerHTML = '';
+  state.screens.forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'screen-item' + (s.id === state.currentAdmin ? ' selected' : '');
+    div.innerHTML = `
+      <div>
+        <div class="screen-item-name">${s.name}</div>
+        <div class="screen-item-meta">${s.items.length} item${s.items.length===1?'':'s'} na playlist</div>
+      </div>
+      <div class="dot"></div>
+    `;
+    div.onclick = () => { state.currentAdmin = s.id; renderAll(); };
+    el.appendChild(div);
+  });
+}
+
+function renderEditor(){
+  const screen = getScreen(state.currentAdmin);
+  document.getElementById('editor-title').innerHTML = `${screen.name} <span>· playlist</span>`;
+  const pl = document.getElementById('playlist');
+  pl.innerHTML = '';
+  if(screen.items.length === 0){
+    pl.innerHTML = '<div class="empty-state">Nenhum item ainda. Adicione o primeiro conteúdo acima.</div>';
+    return;
+  }
+  screen.items.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    card.innerHTML = `
+      ${item.mediaUrl ? `<img class="thumb" src="${item.mediaUrl}" onerror="this.style.display='none'">` : `<div class="type-chip" style="background:${TYPE_COLOR[item.type]}"></div>`}
+      <div class="item-main">
+        <div class="item-title">${item.title}</div>
+        <div class="item-sub">${item.sub || ''}</div>
+      </div>
+      <div class="item-tags">
+        <span class="badge">${TYPE_LABEL[item.type]}</span>
+        <span class="duration-tag">${item.duration}s</span>
+      </div>
+      <div class="item-actions">
+        <button class="icon-btn" data-act="up" ${idx===0?'disabled':''}>↑</button>
+        <button class="icon-btn" data-act="down" ${idx===screen.items.length-1?'disabled':''}>↓</button>
+        <button class="icon-btn danger" data-act="del">✕</button>
+      </div>
+    `;
+    card.querySelector('[data-act="up"]').onclick = () => moveItem(screen, idx, -1);
+    card.querySelector('[data-act="down"]').onclick = () => moveItem(screen, idx, 1);
+    card.querySelector('[data-act="del"]').onclick = () => {
+      const items = screen.items.slice();
+      items.splice(idx,1);
+      saveScreenItems(screen.id, items);
+    };
+    pl.appendChild(card);
+  });
+}
+
+function moveItem(screen, idx, dir){
+  const target = idx + dir;
+  if(target < 0 || target >= screen.items.length) return;
+  const items = screen.items.slice();
+  [items[idx], items[target]] = [items[target], items[idx]];
+  saveScreenItems(screen.id, items);
+}
+
+function renderStats(){
+  const screen = getScreen(state.currentAdmin);
+  const total = screen.items.reduce((a,i)=>a+Number(i.duration),0);
+  const el = document.getElementById('stat-block');
+  el.innerHTML = `
+    <div class="stat-row"><span>Duração do ciclo</span><b>${total}s</b></div>
+    <div class="stat-row"><span>Itens na playlist</span><b>${screen.items.length}</b></div>
+    <div class="stat-row"><span>Anúncios pagos</span><b>${screen.items.filter(i=>i.type==='anuncio').length}</b></div>
+  `;
+}
+
+function renderPlayerSelect(){
+  const sel = document.getElementById('player-select');
+  const prev = sel.value || state.currentPlayer;
+  sel.innerHTML = '';
+  state.screens.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id; opt.textContent = s.name;
+    if(s.id === (prev || state.currentPlayer)) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function renderAll(){
+  renderScreenList();
+  renderEditor();
+  renderStats();
+  renderPlayerSelect();
+}
+
+// ---------- Playback engines ----------
+function paintScreen(screenEl, titleEl, subEl, item){
+  if(item.mediaUrl){
+    screenEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.55)), url('${item.mediaUrl}')`;
+    screenEl.style.backgroundColor = 'transparent';
+    titleEl.style.color = '#fff';
+    subEl.style.color = '#fff';
+  } else {
+    screenEl.style.backgroundImage = 'none';
+    screenEl.style.backgroundColor = TYPE_BG[item.type];
+    titleEl.style.color = '#0d0f14';
+    subEl.style.color = '#0d0f14';
+  }
+}
+
+function makeEngine(getScreenId, els){
+  let idx = 0, elapsed = 0, lastTs = null, lastScreenId = null;
+  function tick(ts){
+    const screenId = getScreenId();
+    if(screenId !== lastScreenId){ idx = 0; elapsed = 0; lastScreenId = screenId; }
+    const screen = getScreen(screenId);
+    if(!screen || screen.items.length === 0){
+      els.onEmpty();
+      lastTs = ts; requestAnimationFrame(tick); return;
+    }
+    if(idx >= screen.items.length) idx = 0;
+    const item = screen.items[idx];
+    if(lastTs === null) lastTs = ts;
+    const dt = (ts - lastTs) / 1000;
+    lastTs = ts;
+    elapsed += dt;
+    const dur = Number(item.duration) || 8;
+    const pct = Math.min(100, (elapsed/dur)*100);
+    els.onFrame(item, pct);
+    if(elapsed >= dur){
+      elapsed = 0;
+      idx = (idx + 1) % screen.items.length;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+makeEngine(() => state.currentAdmin, {
+  onFrame(item, pct){
+    const screenEl = document.getElementById('mini-screen');
+    const titleEl = document.getElementById('mini-title');
+    const subEl = document.getElementById('mini-sub');
+    paintScreen(screenEl, titleEl, subEl, item);
+    titleEl.textContent = item.title;
+    subEl.textContent = item.sub || '';
+    document.getElementById('mini-progress').style.width = pct + '%';
+  },
+  onEmpty(){
+    document.getElementById('mini-screen').style.backgroundImage = 'none';
+    document.getElementById('mini-screen').style.backgroundColor = '#20242f';
+    document.getElementById('mini-title').textContent = firstSyncDone ? 'Sem conteúdo' : 'Carregando…';
+    document.getElementById('mini-title').style.color = '#8b93a3';
+    document.getElementById('mini-sub').textContent = '';
+    document.getElementById('mini-progress').style.width = '0%';
+  }
+});
+
+makeEngine(() => state.currentPlayer, {
+  onFrame(item, pct){
+    const screenEl = document.getElementById('tv-screen');
+    const titleEl = document.getElementById('tv-title');
+    const subEl = document.getElementById('tv-sub');
+    paintScreen(screenEl, titleEl, subEl, item);
+    titleEl.textContent = item.title;
+    subEl.textContent = item.sub || '';
+    document.getElementById('tv-badge').textContent = TYPE_LABEL[item.type];
+    document.getElementById('tv-badge').style.color = item.mediaUrl ? 'rgba(255,255,255,0.75)' : 'rgba(13,15,20,0.6)';
+    document.getElementById('tv-clock-holder');
+    document.getElementById('tv-progress').style.width = pct + '%';
+  },
+  onEmpty(){
+    const screenEl = document.getElementById('tv-screen');
+    screenEl.style.backgroundImage = 'none';
+    screenEl.style.backgroundColor = '#161922';
+    document.getElementById('tv-title').textContent = '';
+    document.getElementById('tv-sub').textContent = '';
+    document.getElementById('tv-badge').textContent = firstSyncDone ? 'SEM CONTEÚDO' : 'CARREGANDO…';
+    document.getElementById('tv-progress').style.width = '0%';
+  }
+});
+
+function updateClock(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mm = String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('tv-clock').textContent = `${hh}:${mm}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ---------- Interactions ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+  };
+});
+
+document.getElementById('go-player-btn').onclick = () => {
+  state.currentPlayer = state.currentAdmin;
+  renderPlayerSelect();
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelector('.tab-btn[data-view="player"]').classList.add('active');
+  document.getElementById('view-player').classList.add('active');
+};
+
+document.getElementById('player-select').onchange = (e) => {
+  state.currentPlayer = e.target.value;
+};
+
+document.getElementById('add-item-btn').onclick = async () => {
+  const title = document.getElementById('f-title').value.trim();
+  const sub = document.getElementById('f-sub').value.trim();
+  const mediaUrl = document.getElementById('f-media').value.trim();
+  const type = document.getElementById('f-type').value;
+  const duration = Number(document.getElementById('f-duration').value) || 8;
+  if(!title) { document.getElementById('f-title').focus(); return; }
+  const screen = getScreen(state.currentAdmin);
+  const items = screen.items.concat([{ id: nextId++, title, sub, type, duration, mediaUrl }]);
+  const btn = document.getElementById('add-item-btn');
+  btn.disabled = true; btn.textContent = 'salvando…';
+  await saveScreenItems(screen.id, items);
+  btn.disabled = false; btn.textContent = '+ Adicionar';
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-sub').value = '';
+  document.getElementById('f-media').value = '';
+  document.getElementById('f-duration').value = 8;
+};
+
+// ---------- Boot ----------
+setConn('', 'conectando ao Firestore…');
+renderAll();
+seedIfEmpty().then(subscribe);
+</script>
+</body>
+</html>
