@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>SINAL — Painel de Mídia Indoor</title>
+<title>Layya — Mídia Indoor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -155,10 +155,6 @@
     display:flex; align-items:center; justify-content:center; flex-direction:column;
     padding:16px; text-align:center; background-size:cover; background-position:center; transition:background-color .3s ease;
   }
-  .monitor-screen::after{
-    content:''; position:absolute; inset:0; pointer-events:none;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.08) 0px, rgba(0,0,0,0.08) 1px, transparent 1px, transparent 3px);
-  }
   .mini-title{ font-family:var(--font-display); font-weight:600; font-size:15px; z-index:1; }
   .mini-sub{ font-size:11px; opacity:0.85; margin-top:4px; z-index:1; }
   .mini-progress{ position:absolute; bottom:0; left:0; height:3px; background:rgba(255,255,255,0.55); }
@@ -187,10 +183,6 @@
     aspect-ratio:16/9; border-radius:8px; position:relative; overflow:hidden;
     display:flex; align-items:center; justify-content:center; flex-direction:column; text-align:center; padding:40px;
     transition: background-color .5s ease; background-size:cover; background-position:center;
-  }
-  .tv-screen::after{
-    content:''; position:absolute; inset:0; pointer-events:none;
-    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.07) 0px, rgba(0,0,0,0.07) 1px, transparent 1px, transparent 3px);
   }
   .tv-title{ font-family:var(--font-display); font-weight:700; font-size:clamp(24px,4vw,52px); z-index:1; }
   .tv-sub{ font-family:var(--font-body); font-size:clamp(13px,1.6vw,20px); margin-top:14px; z-index:1; opacity:0.9; }
@@ -227,6 +219,13 @@
     border-radius:7px; padding:8px 10px; font-family:var(--font-body); font-size:13px; width:140px;
   }
   .weather-status{ font-family:var(--font-mono); font-size:11px; color:var(--muted); flex-basis:100%; }
+
+  body.kiosk .topbar{ display:none; }
+  body.kiosk .player-controls{ display:none; }
+  body.kiosk .player-view{ min-height:100vh; padding:0; }
+  body.kiosk .tv{ width:100vw; }
+  body.kiosk .tv-bezel{ border-radius:0; padding:0; box-shadow:none; }
+  body.kiosk .tv-screen{ border-radius:0; aspect-ratio:auto; height:100vh; }
 </style>
 </head>
 <body>
@@ -654,7 +653,7 @@ function paintScreen(screenEl, titleEl, subEl, item){
   }
   if(item.mediaUrl){
     screenEl.style.background = '';
-    screenEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.35), rgba(0,0,0,0.55)), url('${item.mediaUrl}')`;
+    screenEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.35)), url('${item.mediaUrl}')`;
     screenEl.style.backgroundColor = 'transparent';
     titleEl.style.color = '#fff';
     subEl.style.color = '#fff';
@@ -823,9 +822,24 @@ document.getElementById('add-item-btn').onclick = async () => {
   document.getElementById('f-hide-overlay').checked = false;
 };
 
+// ---------- Modo de exibição (link direto por tela) ----------
+function activateKioskFromUrl(){
+  const params = new URLSearchParams(window.location.search);
+  const tela = params.get('tela');
+  if(!tela) return;
+  const exists = SCREEN_ORDER.some(s => s.id === tela);
+  if(!exists) return;
+  state.currentPlayer = tela;
+  document.body.classList.add('kiosk');
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-player').classList.add('active');
+}
+
 // ---------- Boot ----------
 setConn('', 'conectando ao Firestore…');
 renderAll();
+activateKioskFromUrl();
 seedIfEmpty().then(subscribe);
 setInterval(() => { state.screens.forEach(s => refreshWeather(s)); }, 10*60*1000);
 </script>
