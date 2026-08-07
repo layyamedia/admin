@@ -192,15 +192,9 @@
   .tv-dot{ width:8px; height:8px; border-radius:50%; background:var(--tally); animation:blink 1.4s infinite; }
   .tv-empty{ font-family:var(--font-mono); opacity:0.6; font-size:14px; z-index:1; }
 
-  .weatherbar{
-    position:absolute; left:0; right:0; bottom:0; height:84px; z-index:5;
-    background:rgba(8,9,13,0.88); backdrop-filter:blur(6px);
-    border-top:1px solid rgba(255,255,255,0.08);
-    display:flex; align-items:center; gap:22px; padding:0 28px;
-  }
+  .weatherbar{ position:absolute; left:0; right:0; bottom:0; height:64px; z-index:5; background:rgba(8,9,13,0.88); backdrop-filter:blur(6px); border-top:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; gap:22px; padding:0 28px; }
   .wb-time{ font-family:var(--font-display); font-weight:700; font-size:30px; color:#fff; line-height:1; }
-  .wb-date{ font-family:var(--font-body); font-size:16px; color:#fff; font-weight:600; text-transform:capitalize; max-width:140px; line-height:1.3; }
-  .wb-icon{ font-size:26px; line-height:1; }
+.wb-date{ font-family:var(--font-body); font-size:16px; color:#fff; font-weight:600; text-align:center; max-width:140px; line-height:1.3; }  .wb-icon{ font-size:26px; line-height:1; }
   .wb-minmax{ font-family:var(--font-mono); font-size:15px; color:#fff; letter-spacing:0.3px; }
   .wb-divider{ width:1px; height:32px; background:rgba(255,255,255,0.2); }
   .wb-city{ font-family:var(--font-body); font-weight:600; font-size:14px; color:#fff; }
@@ -762,8 +756,7 @@ function updateWeatherBar(prefix, screenId){
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
   document.getElementById(prefix + '-wb-time').textContent = `${hh}:${mm}`;
-document.getElementById(prefix + '-wb-date').textContent = `${WEEKDAYS_FULL[now.getDay()]}, ${now.getDate()} de ${MONTHS_FULL[now.getMonth()]}`;  const screen = getScreen(screenId);
-  const w = screen && screen.weather;
+document.getElementById(prefix + '-wb-date').innerHTML = `${WEEKDAYS_FULL[now.getDay()]}<br>${now.getDate()} de ${MONTHS_FULL[now.getMonth()]}`;  const w = screen && screen.weather;
   if(!w || !w.enabled || !w.lat){
     bar.style.display = 'none';
     return;
