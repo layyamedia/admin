@@ -756,7 +756,9 @@ function updateWeatherBar(prefix, screenId){
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
   document.getElementById(prefix + '-wb-time').textContent = `${hh}:${mm}`;
-document.getElementById(prefix + '-wb-date').innerHTML = `${WEEKDAYS_FULL[now.getDay()]}<br>${now.getDate()} de ${MONTHS_FULL[now.getMonth()]}`;  const w = screen && screen.weather;
+  document.getElementById(prefix + '-wb-date').innerHTML = `${WEEKDAYS_FULL[now.getDay()]}<br>${now.getDate()} de ${MONTHS_FULL[now.getMonth()]}`;
+  const screen = getScreen(screenId);
+  const w = screen && screen.weather;
   if(!w || !w.enabled || !w.lat){
     bar.style.display = 'none';
     return;
@@ -767,7 +769,7 @@ document.getElementById(prefix + '-wb-date').innerHTML = `${WEEKDAYS_FULL[now.ge
   document.getElementById(prefix + '-wb-minmax').textContent = wc ? `${wc.max}°/${wc.min}°` : '--°/--°';
   document.getElementById(prefix + '-wb-city').textContent = wc ? wc.city : (w.city || '—');
 }
-
+  
 setInterval(() => {
   updateWeatherBar('tv', state.currentPlayer);
   updateWeatherBar('mini', state.currentAdmin);
