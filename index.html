@@ -762,9 +762,7 @@ function updateWeatherBar(prefix, screenId){
   const hh = String(now.getHours()).padStart(2,'0');
   const mm = String(now.getMinutes()).padStart(2,'0');
   document.getElementById(prefix + '-wb-time').textContent = `${hh}:${mm}`;
-  document.getElementById(prefix + '-wb-date').textContent = ``textContent = \`${WEEKDAYS_FULL[now.getDay()]}, ${MONTHS_FULL[now.getMonth()]} ${now.getDate()}\`;
-
-  const screen = getScreen(screenId);
+document.getElementById(prefix + '-wb-date').textContent = `${WEEKDAYS_FULL[now.getDay()]}, ${now.getDate()} de ${MONTHS_FULL[now.getMonth()]}`;  const screen = getScreen(screenId);
   const w = screen && screen.weather;
   if(!w || !w.enabled || !w.lat){
     bar.style.display = 'none';
