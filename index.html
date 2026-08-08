@@ -731,8 +731,8 @@ function paintScreen(screenEl, titleEl, subEl, item, videoEl){
   } else if(item.mediaUrl){
     if(videoEl){ videoEl.style.display = 'none'; videoEl.removeAttribute('src'); videoEl.dataset.currentSrc=''; }
     screenEl.style.background = '';
-    screenEl.style.backgroundImage = `linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.35)), url('${item.mediaUrl}')`;
-    screenEl.style.backgroundColor = 'transparent';
+const overlay = item.hideOverlay ? '' : 'linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.35)), ';
+screenEl.style.backgroundImage = `${overlay}url('${item.mediaUrl}')`;    screenEl.style.backgroundColor = 'transparent';
     titleEl.style.color = '#fff';
     subEl.style.color = '#fff';
   } else {
